@@ -65,7 +65,7 @@ const SECRET_KEY = /^[a-z]{2,}_live_/i;
 function assertBrowserSafeKey(key: string): void {
   if (!key) {
     throw new Error(
-      "@locio/react: no publicKey. Create one at https://locio.com.au/account/api — " +
+      "@locio-au/react: no publicKey. Create one at https://locio.com.au/account/api — " +
         "a public key (lc_pub_...) carries an origin allow list and is safe in a page.",
     );
   }
@@ -74,7 +74,7 @@ function assertBrowserSafeKey(key: string): void {
   const inBrowser = typeof window !== "undefined" && typeof document !== "undefined";
   if (inBrowser && SECRET_KEY.test(key)) {
     throw new Error(
-      "@locio/react: that is a secret key, and this code runs in a browser. " +
+      "@locio-au/react: that is a secret key, and this code runs in a browser. " +
         "Anyone who opens the page can read it and spend your quota. " +
         "Use a public key (lc_pub_...) instead: it carries an origin allow list, " +
         "so a copy lifted from your page does nothing anywhere else. " +
@@ -94,7 +94,7 @@ function checkBaseUrl(raw: string): string {
   try {
     url = new URL(raw);
   } catch {
-    throw new Error(`@locio/react: baseUrl ${raw} is not a URL`);
+    throw new Error(`@locio-au/react: baseUrl ${raw} is not a URL`);
   }
   const loopback =
     url.hostname === "localhost" || url.hostname === "127.0.0.1" || url.hostname === "[::1]";
@@ -102,7 +102,7 @@ function checkBaseUrl(raw: string): string {
     return raw.replace(/\/+$/, "");
   }
   throw new Error(
-    `@locio/react: baseUrl ${raw} must be https (http is allowed only for localhost)`,
+    `@locio-au/react: baseUrl ${raw} must be https (http is allowed only for localhost)`,
   );
 }
 

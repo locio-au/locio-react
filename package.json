@@ -1,5 +1,5 @@
 {
-  "name": "@locio/react",
+  "name": "@locio-au/react",
   "version": "0.1.0",
   "description": "React address autocomplete for Australian addresses: validation, autocomplete and geocoding from G-NAF",
   "keywords": [

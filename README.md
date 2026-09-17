@@ -1,4 +1,4 @@
-# @locio/react
+# @locio-au/react
 
 **React address autocomplete** for Australian addresses, with validation and
 geocoding built in. Backed by G-NAF, the national address register.
@@ -13,13 +13,13 @@ geocoding built in. Backed by G-NAF, the national address register.
 - No dependencies beyond React
 
 ```sh
-npm install @locio/react
+npm install @locio-au/react
 ```
 
 ## Quick start
 
 ```tsx
-import { AddressAutocomplete } from "@locio/react";
+import { AddressAutocomplete } from "@locio-au/react";
 
 export function Checkout() {
   return (
@@ -82,7 +82,7 @@ If you want your own markup entirely, the hook has all the behaviour and no
 opinion about the DOM:
 
 ```tsx
-import { useAddressAutocomplete } from "@locio/react";
+import { useAddressAutocomplete } from "@locio-au/react";
 
 function MyField() {
   const { term, setTerm, results, status } = useAddressAutocomplete({
@@ -119,7 +119,7 @@ exactly like an address that does not exist.
 The client is exported if you want the other calls without the UI:
 
 ```ts
-import { createClient } from "@locio/react";
+import { createClient } from "@locio-au/react";
 
 const locio = createClient({ publicKey: "lc_pub_..." });
 
@@ -141,7 +141,7 @@ A record can carry two pids and they mean different things:
 | `gnaf.primary_pid` | The **parcel** it sits on, when the row is a unit. |
 
 ```ts
-import { isUnit } from "@locio/react";
+import { isUnit } from "@locio-au/react";
 ```
 
 Storing the primary pid stores the building rather than the door, and nothing
