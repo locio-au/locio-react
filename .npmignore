@@ -1,0 +1,6 @@
+src/
+node_modules/
+*.config.ts
+vitest.setup.ts
+tsconfig.json
+.github/
