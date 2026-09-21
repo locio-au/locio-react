@@ -46,6 +46,16 @@ export interface UseAddressAutocomplete {
   setTerm(term: string): void;
   results: Address[];
   status: AutocompleteStatus;
+  /**
+   * What the service said about the country it searched, when it said
+   * anything: a public key is scoped to where the visitor is, and somebody
+   * outside the countries you cover gets no results and a sentence saying so.
+   * Show it in place of your own empty message, which was written for
+   * somebody who has not typed enough yet.
+   */
+  note: string;
+  /** Which country was searched, as a two letter ISO 3166-1 code. */
+  countryCode: string;
   /** The error behind `status === "unavailable"`, for logging. */
   error: unknown;
   /** Forget the results without clearing the box: use after a selection. */
@@ -80,6 +90,8 @@ export function useAddressAutocomplete(
 
   const [term, setTermState] = useState("");
   const [results, setResults] = useState<Address[]>([]);
+  const [note, setNote] = useState("");
+  const [countryCode, setCountryCode] = useState("");
   const [status, setStatus] = useState<AutocompleteStatus>("idle");
   const [error, setError] = useState<unknown>(null);
 
@@ -101,6 +113,7 @@ export function useAddressAutocomplete(
     clearTimeout(timer.current);
     inFlight.current?.abort();
     setResults([]);
+    setNote("");
     setStatus("idle");
   }, []);
 
@@ -112,6 +125,7 @@ export function useAddressAutocomplete(
       if (next.trim().length < minLength) {
         inFlight.current?.abort();
         setResults([]);
+        setNote("");
         setStatus("idle");
         return;
       }
@@ -126,11 +140,13 @@ export function useAddressAutocomplete(
         inFlight.current = mine;
 
         client
-          .search(next, { limit, signal: mine.signal })
-          .then((found) => {
+          .searchScoped(next, { limit, signal: mine.signal })
+          .then((answer) => {
             if (mine.signal.aborted) return;
-            setResults(found);
-            setStatus(found.length > 0 ? "results" : "empty");
+            setResults(answer.addresses);
+            setNote(answer.note ?? "");
+            setCountryCode(answer.countryCode ?? "");
+            setStatus(answer.addresses.length > 0 ? "results" : "empty");
             setError(null);
           })
           .catch((err: unknown) => {
@@ -138,6 +154,7 @@ export function useAddressAutocomplete(
             // must repaint nothing: a newer request owns the box now.
             if (mine.signal.aborted) return;
             setResults([]);
+            setNote("");
             setError(err);
             setStatus("unavailable");
           });
@@ -146,5 +163,5 @@ export function useAddressAutocomplete(
     [client, debounceMs, limit, minLength],
   );
 
-  return { term, setTerm, results, status, error, clear };
+  return { term, setTerm, results, status, note, countryCode, error, clear };
 }

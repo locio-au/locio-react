@@ -168,3 +168,38 @@ it("says when the lookup is unavailable", async () => {
 
   expect(await screen.findByRole("status")).toHaveTextContent(/unavailable/i);
 });
+
+/**
+ * A visitor in a country we hold no addresses for.
+ *
+ * Their key is scoped to where they are, so the service answers with no
+ * results and a sentence saying why. The default message here is written for
+ * somebody who typed too little of an Australian address, and showing it to
+ * somebody in Auckland tells them to keep typing an address that will never
+ * arrive. The service's own sentence is the true one, so it wins.
+ */
+it("says why there are no addresses when the service explained", async () => {
+  stubFetch({
+    data: [],
+    country_code: "NZ",
+    note: "we hold no address data for NZ. Addresses are available for AU.",
+  });
+  const user = setup();
+  render(widget());
+
+  await user.type(screen.getByLabelText("Address"), "145 sydney road");
+
+  await waitFor(() =>
+    expect(screen.getByText(/no address data for NZ/i)).toBeTruthy(),
+  );
+});
+
+it("keeps its own message when the service said nothing", async () => {
+  stubFetch({ data: [] });
+  const user = setup();
+  render(widget());
+
+  await user.type(screen.getByLabelText("Address"), "145 sydney road");
+
+  await waitFor(() => expect(screen.getByText(/keep typing/i)).toBeTruthy());
+});

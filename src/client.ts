@@ -1,6 +1,6 @@
 import type { Address, Resolution } from "./types";
 
-export const VERSION = "0.1.0";
+export const VERSION = "0.2.0";
 export const DEFAULT_BASE_URL = "https://api.locio.com.au";
 
 /** What the API said when it refused.
@@ -43,15 +43,37 @@ export interface SearchOptions {
   signal?: AbortSignal;
 }
 
+/**
+ * Addresses, and what the service said about the country it searched.
+ *
+ * A public key is scoped to where the browser is: the service resolves the
+ * country from the visitor's own connection, and nothing in a page can widen
+ * that. So a visitor in a country we hold no addresses for receives no
+ * results and a `note` saying why, as an ordinary 200 that costs nothing.
+ * Showing that sentence is the difference between a form that looks broken
+ * and one that says where it works.
+ */
+export interface ScopedAddresses {
+  addresses: Address[];
+  /** Which country was searched, as a two letter ISO 3166-1 code. */
+  countryCode?: string;
+  /** Why the list is empty, when empty is the right answer. */
+  note?: string;
+}
+
 export interface Client {
   /** Candidate addresses for what somebody has typed: address autocomplete. */
   search(term: string, options?: SearchOptions): Promise<Address[]>;
+  /** The same call, with the country it searched and any note about it. */
+  searchScoped(term: string, options?: SearchOptions): Promise<ScopedAddresses>;
   /** One address by its G-NAF id. Null when the pid has retired. */
   get(pid: string, options?: { signal?: AbortSignal }): Promise<Address | null>;
   /** A whole address string to one record: address validation and geocoding. */
   resolve(address: string, options?: { signal?: AbortSignal }): Promise<Resolution>;
   /** Near misses for an address that did not resolve. Three units. */
   similar(address: string, options?: SearchOptions): Promise<Address[]>;
+  /** The same call, with the country it searched and any note about it. */
+  similarScoped(address: string, options?: SearchOptions): Promise<ScopedAddresses>;
 }
 
 /**
@@ -146,14 +168,28 @@ export function createClient(options: ClientOptions): Client {
     return body as T;
   }
 
+  /** The envelope's own fields, read the same way wherever a list comes back. */
+  function scoped(body: {
+    data?: Address[];
+    country_code?: string;
+    note?: string;
+  }): ScopedAddresses {
+    return { addresses: body.data ?? [], countryCode: body.country_code, note: body.note };
+  }
+
   return {
-    async search(term, opts = {}) {
-      const body = await call<{ data?: Address[] }>(
-        "/v1/addresses",
-        { q: term, limit: opts.limit },
-        opts.signal,
+    async searchScoped(term, opts = {}) {
+      return scoped(
+        await call<{ data?: Address[]; country_code?: string; note?: string }>(
+          "/v1/addresses",
+          { q: term, limit: opts.limit },
+          opts.signal,
+        ),
       );
-      return body.data ?? [];
+    },
+
+    async search(term, opts = {}) {
+      return (await this.searchScoped(term, opts)).addresses;
     },
 
     async get(pid, opts = {}) {
@@ -181,13 +217,18 @@ export function createClient(options: ClientOptions): Client {
       return body.data ?? { matched: false, address: null };
     },
 
-    async similar(address, opts = {}) {
-      const body = await call<{ data?: Address[] }>(
-        "/v1/addresses/similar",
-        { q: address, limit: opts.limit },
-        opts.signal,
+    async similarScoped(address, opts = {}) {
+      return scoped(
+        await call<{ data?: Address[]; country_code?: string; note?: string }>(
+          "/v1/addresses/similar",
+          { q: address, limit: opts.limit },
+          opts.signal,
+        ),
       );
-      return body.data ?? [];
+    },
+
+    async similar(address, opts = {}) {
+      return (await this.similarScoped(address, opts)).addresses;
     },
   };
 }

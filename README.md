@@ -19,7 +19,7 @@ npm install @locio-au/react
 ## Quick start
 
 ```tsx
-import { AddressAutocomplete } from "@locio-au/react";
+import { AddressAutocomplete, addressId } from "@locio-au/react";
 
 export function Checkout() {
   return (
@@ -28,7 +28,7 @@ export function Checkout() {
       label="Delivery address"
       onSelect={(address) => {
         console.log(address.formatted);
-        console.log(address.address_detail_pid); // store this, not the text
+        console.log(addressId(address)); // store this, not the text
         console.log(address.lat, address.lng);
         console.log(address.components?.postcode);
       }}
@@ -82,7 +82,7 @@ If you want your own markup entirely, the hook has all the behaviour and no
 opinion about the DOM:
 
 ```tsx
-import { useAddressAutocomplete } from "@locio-au/react";
+import { useAddressAutocomplete, addressId } from "@locio-au/react";
 
 function MyField() {
   const { term, setTerm, results, status } = useAddressAutocomplete({
@@ -99,7 +99,7 @@ function MyField() {
       {status === "unavailable" && <span>Lookup is unavailable.</span>}
       <ul>
         {results.map((a) => (
-          <li key={a.address_detail_pid}>{a.formatted}</li>
+          <li key={addressId(a)}>{a.formatted}</li>
         ))}
       </ul>
     </>
@@ -119,26 +119,58 @@ exactly like an address that does not exist.
 The client is exported if you want the other calls without the UI:
 
 ```ts
-import { createClient } from "@locio-au/react";
+import { createClient, addressId } from "@locio-au/react";
 
 const locio = createClient({ publicKey: "lc_pub_..." });
 
 const result = await locio.resolve("1 george st sydenham nsw 2044");
 if (result.matched) {
-  console.log(result.address!.address_detail_pid);
+  console.log(addressId(result.address!));
 }
 ```
 
 `search`, `resolve` and `get` cost one unit; `similar` costs three.
 
-## Two ids, and which to store
+## Where your visitor is
 
-A record can carry two pids and they mean different things:
+A public key is scoped to the country the visitor is in, which the service
+resolves from their own connection. Nothing in a page can widen that, and it
+is why the key is safe to publish.
+
+So a visitor in a country we hold no addresses for gets no results and a
+sentence saying why, as an ordinary answer that costs nothing. Show that
+sentence rather than your own "nothing matched" message, which was written for
+somebody who has not typed enough yet:
+
+```ts
+const { results, status, note, countryCode } = useAddressAutocomplete({
+  publicKey: "lc_pub_...",
+});
+// status === "empty" && note
+//   -> "we hold no address data for NZ. Addresses are available for AU."
+```
+
+`<AddressAutocomplete />` already does this: when the service explains itself,
+its message is the one shown. `searchScoped` and `similarScoped` on the client
+return the same three things without the UI.
+
+Australia is what is covered today.
+
+## Which id to store
+
+Read the id through `addressId(address)`. It is the address's id in its
+country's register, and the one field every address carries:
 
 | Field | Means |
 |---|---|
-| `address_detail_pid` | **This address.** The one to store. |
-| `gnaf.primary_pid` | The **parcel** it sits on, when the row is a unit. |
+| `id` | **This address.** The one to store. Read it through `addressId`. |
+| `address_detail_pid` | The same id, under G-NAF's own column name. Australian addresses only. |
+| `gnaf.primary_pid` | The **parcel** it sits on, when the row is a unit. Australian addresses only. |
+
+An address outside Australia carries `id` and `country_code` and none of the
+G-NAF fields: no pid, no `mesh_block`, no `gnaf` object. They are absent
+rather than empty, because an empty one would say we hold something we do not.
+Ids are unique within a country, so store `country_code` beside the id.
 
 ```ts
 import { isUnit } from "@locio-au/react";

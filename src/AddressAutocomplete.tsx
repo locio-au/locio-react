@@ -59,13 +59,17 @@ export function AddressAutocomplete({
   const inputId = id ?? `locio-${reactId}`;
   const listId = `${inputId}-list`;
 
-  const { term, setTerm, results, status, clear } = useAddressAutocomplete(options);
+  const { term, setTerm, results, status, note, clear } = useAddressAutocomplete(options);
   const [active, setActive] = useState(-1);
   const [open, setOpen] = useState(false);
   const blurTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const showList = open && status === "results" && results.length > 0;
-  const message = MESSAGES[status];
+  // The service's own sentence wins over ours. Ours is written for somebody
+  // who has not typed enough of an Australian address yet; the service's says
+  // things ours cannot know, such as that we hold no addresses at all for the
+  // country this visitor is in.
+  const message = status === "empty" && note ? note : MESSAGES[status];
 
   function choose(address: Address) {
     setTerm(address.formatted);

@@ -47,19 +47,39 @@ export interface GnafRecord {
   geocode_type?: string;
 }
 
-/** One resolved G-NAF record. */
+/**
+ * One resolved address, from whichever register covers it.
+ *
+ * The G-NAF fields below the components are Australian. G-NAF publishes a
+ * pid, an ABS mesh block and a parcel, and another country's register
+ * publishes none of them: they are absent on an address outside Australia
+ * rather than empty, and `country_code` says which case you are in.
+ */
 export interface Address {
   /**
-   * The G-NAF Address Detail PID: **this** address, and the id to store
-   * against your own record. Stable across G-NAF releases for an address that
-   * has not changed.
+   * This address in its country's register, and the id to store against your
+   * own record. Stable across releases for an address that has not changed.
+   *
+   * In Australia it is the G-NAF Address Detail PID, and
+   * `address_detail_pid` holds the same value. Elsewhere it is whatever that
+   * register issues. Ids are unique within a country, so store
+   * `country_code` beside it, and read this through `addressId`.
    */
-  address_detail_pid: string;
+  id?: string;
+  /** Which register this came from, as a two letter ISO 3166-1 code. Absent
+   *  means Australia. */
+  country_code?: string;
+  /**
+   * The G-NAF Address Detail PID, for an Australian address. Absent for any
+   * other, where there is no such thing.
+   */
+  address_detail_pid?: string;
   /** The address on one line, as an envelope would write it. */
   formatted: string;
   lat: number;
   lng: number;
-  /** The ABS mesh block: the join key to every census statistic about the area. */
+  /** The ABS mesh block: the join key to every census statistic about the
+   *  area. Australian addresses only. */
   mesh_block?: string;
   components?: AddressComponents;
   gnaf?: GnafRecord;
@@ -85,8 +105,10 @@ export function isUnit(address: Address): boolean {
 
 /** The address id, under whichever name the API used.
  *
- *  The API emits `address_detail_pid` and `gnaf_pid` together for one release.
- *  Reading either means this package works against both. */
+ *  `id` is the one every address carries, whichever country it is in. The two
+ *  after it are what an Australian record also carries, and what a service
+ *  too old to send `id` carries instead, so reading through this works
+ *  against every version. */
 export function addressId(address: Address): string {
-  return address.address_detail_pid ?? address.gnaf_pid ?? "";
+  return address.id || address.address_detail_pid || address.gnaf_pid || "";
 }

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createClient, LocioError } from "./client";
+import { addressId } from "./types";
 
 const UNIT = {
   data: [
@@ -130,5 +131,61 @@ describe("base URL is a credential boundary", () => {
     expect(() =>
       createClient({ publicKey: "lc_pub_x", baseUrl: "http://localhost:8080" }),
     ).not.toThrow();
+  });
+});
+
+/**
+ * An answer from a country the service holds no addresses for.
+ *
+ * A public key is scoped to where the browser is, so this is what a visitor
+ * outside the countries you cover receives: no results, and a sentence saying
+ * why. It is a 200 and it is not charged. A widget that treats it as a
+ * failure tells that visitor the form is broken, when the truthful thing to
+ * tell them is that we have no addresses for their country.
+ */
+const OUT_OF_SCOPE = {
+  data: [],
+  country_code: "NZ",
+  note: "we hold no address data for NZ. Addresses are available for AU.",
+};
+
+describe("a country with no addresses", () => {
+  it("carries the note beside the empty list", async () => {
+    stub(200, OUT_OF_SCOPE);
+    const client = createClient({ publicKey: "lc_pub_key" });
+
+    const answer = await client.searchScoped("145 sydney road");
+
+    expect(answer.addresses).toEqual([]);
+    expect(answer.countryCode).toBe("NZ");
+    expect(answer.note).toContain("NZ");
+  });
+
+  it("is not an error, so search still resolves", async () => {
+    stub(200, OUT_OF_SCOPE);
+    const client = createClient({ publicKey: "lc_pub_key" });
+
+    await expect(client.search("145 sydney road")).resolves.toEqual([]);
+  });
+});
+
+describe("the address id", () => {
+  it("is read from id, which every address carries", async () => {
+    stub(200, {
+      data: [{ id: "5f2c1e1a-1f6d-4f7a-9d26-2a1c7f2b9f41", formatted: "145 Sydney Road" }],
+      country_code: "US",
+    });
+    const client = createClient({ publicKey: "lc_pub_key" });
+
+    const [found] = await client.search("145 sydney");
+    expect(addressId(found!)).toBe("5f2c1e1a-1f6d-4f7a-9d26-2a1c7f2b9f41");
+  });
+
+  it("falls back to the Australian pid, for a service that sends no id yet", async () => {
+    stub(200, UNIT);
+    const client = createClient({ publicKey: "lc_pub_key" });
+
+    const [found] = await client.search("104/119 turner");
+    expect(addressId(found!)).toBe("GAVIC425624910");
   });
 });
